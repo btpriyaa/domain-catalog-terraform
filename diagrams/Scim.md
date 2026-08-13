@@ -50,3 +50,22 @@ flowchart TB
     class NOTE1 noteBad
     class NOTE2 noteGood
 ```
+# User Access Management — Responsibility Matrix
+
+| Activity | Central Identity Team | Domain Admin Team | Where it lives |
+|---|---|---|---|
+| Create/deactivate a user account | ✅ Owns | ❌ No access | IdP (Okta/Entra ID) |
+| Create a new persona group (e.g. `payments-data-analysts`) | ✅ Owns | 🔶 Requests it | IdP, self-service or ticketed |
+| Add/remove a user from a group | ✅ Owns | ❌ No access | IdP — never in Databricks UI |
+| Sync groups/users into Databricks account | ✅ Owns (automatic) | ❌ No access | SCIM (one-directional) |
+| Assign an account-level group to a workspace | 🔶 Usually owns | 🔶 Sometimes delegated | Databricks account console / `databricks_mws_permission_assignment` |
+| Grant catalog/schema privileges (SELECT, CREATE_TABLE, etc.) | ❌ No access | ✅ Owns | `modules/access-control/grants.tf` |
+| Set entitlements (full workspace vs. SQL-editor-only) | ❌ No access | ✅ Owns | `modules/access-control/entitlements.tf` |
+| Set warehouse usage permissions (CAN_USE / CAN_MANAGE) | ❌ No access | ✅ Owns | `modules/access-control/warehouse_and_secrets.tf` |
+| Set secret scope ACLs | ❌ No access | ✅ Owns | `modules/access-control/warehouse_and_secrets.tf` |
+| Create/drop the catalog itself | 🔶 Grants one-time `CREATE CATALOG` privilege | ✅ Owns (day-to-day) | `catalog.tf` |
+| Workspace admin console, audit logs, billing, network/IP allow-lists | ✅ Owns | ❌ No access | Central, out of Terraform scope entirely |
+
+**Legend:** ✅ full ownership · 🔶 shared or conditional · ❌ no access
+
+**Rule of thumb:** Central Identity Team controls *who exists and which groups they belong to*. Domain Admin Team controls *what each group is allowed to do*, entirely inside `modules/access-control`. Nothing in that module creates, deletes, or modifies a user or group — every reference is a read-only lookup by group name.
